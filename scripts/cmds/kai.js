@@ -1,96 +1,91 @@
 const axios = require("axios");
 
-const messageHistory = new Map();
-const MAX_HISTORY = 10;
-
-async function queryAI(prompt, sessionId) {
-    try {
-        const response = await axios.get("https://kai-api-2.onrender.com/chat", {
-            params: {
-                query: prompt,
-                sessionId: sessionId
-            },
-            timeout: 10000
-        });
-
-        // The API returns { message: "..." }
-        return response.data.message || "No message returned.";
-    } catch (error) {
-        if (error.response) {
-            console.error("API Error:", error.response.status, error.response.data);
-            return `API Error: ${error.response.status} - ${error.response.data.message || "Unknown error"}`;
-        } else if (error.request) {
-            console.error("No Response from API:", error.request);
-            return "No response received from the API. Please check your connection.";
-        } else {
-            console.error("Error:", error.message);
-            return `Error: ${error.message}. Please try again later.`;
-        }
+async function queryKai(prompt, sessionId) {
+  try {
+    if (!sessionId) {
+      throw new Error("Missing 'sessionId' parameter.");
     }
+
+    const prefixedQuery = `Kai ${prompt}`;
+
+    console.log("Sending query:", prefixedQuery, "with sessionId:", sessionId);
+
+    const response = await axios.get("https://kai-api-2.onrender.com/chat", {
+      params: {
+        query: prefixedQuery,
+        sessionId,
+      },
+      timeout: 10000,
+    });
+
+    console.log("Full API Response:", response.data);
+
+    return response.data.message || response.data;
+  } catch (error) {
+    if (error.response) {
+      console.error("API Error:", error.response.status, error.response.data);
+      return `API Error: ${error.response.status} - ${error.response.data.message || "Unknown error"}`;
+    } else if (error.request) {
+      console.error("No Response from API:", error.request);
+      return "No response received from the API. Please check your connection.";
+    } else {
+      console.error("Error:", error.message);
+      return `Error: ${error.message}. Please try again later.`;
+    }
+  }
 }
 
 module.exports = {
-    config: {
-        name: "kai",
-        aliases: [],
-        version: "1.0.0",
-        author: "Suleiman",
-        longDescription: "Interact with AI via the Kai API and continue chats based on replies.",
-        category: "AI",
-        timestamp: "2025-04-16 00:05:27",
-        credit: "Sman12345678"
+  config: {
+    name: "kai",
+    aliases: ["kai", "ai"],
+    version: "1.0",
+    author: "Sharma Zambara",
+    longDescription: {
+      en: "Interact with Kai via the provided API and continue chats based on replies.",
     },
-
-    onStart: async function({ api, event, args }) {
-        return await this.processMessage({ api, event, messageText: args.join(" ") });
+    category: "AI",
+    guide: {
+      en: "{pn} <your query>",
     },
+  },
 
-    onChat: async function({ api, event }) {
-        if (event.body.startsWith(global.GoatBot.config.prefix) || event.type !== "message") {
-            return;
-        }
-        return await this.processMessage({ api, event, messageText: event.body });
-    },
+  onStart: async function ({ message, args, event, api }) {
+    const prompt = args.join(" ").trim();
+    const userId = event.senderID;
 
-    processMessage: async function({ api, event, messageText }) {
-        const prompt = messageText.trim();
+    message.reaction("⏳", event.messageID);
 
-        if (!prompt) return;
-
-        try {
-            api.setMessageReaction("⏳", event.messageID);
-
-            const threadID = event.threadID;
-            const sessionId = event.senderID;
-
-            if (!messageHistory.has(threadID)) {
-                messageHistory.set(threadID, []);
-            }
-
-            const history = messageHistory.get(threadID);
-            history.push(`user: ${prompt}`);
-
-            while (history.length > MAX_HISTORY) {
-                history.shift();
-            }
-
-            const response = await queryAI(prompt, sessionId);
-            if (response) {
-                history.push(`assistant: ${response}`);
-                api.setMessageReaction("✅", event.messageID);
-                api.sendMessage(response, event.threadID, (err, info) => {
-                    if (!err) {
-                        this.context = { botMessageID: info.messageID };
-                    }
-                });
-            } else {
-                throw new Error("Empty response from API");
-            }
-
-        } catch (error) {
-            console.error("Error in command execution:", error.message);
-            api.setMessageReaction("❌", event.messageID);
-            api.sendMessage(`❌ An unexpected error occurred: ${error.message}`, event.threadID);
-        }
+    if (!prompt) {
+      return message.reply("❌ Please provide a query to send to Kai.");
     }
+
+    try {
+      const reply = await queryKai(prompt, userId);
+      const sentMessage = await message.reply(reply);
+      message.reaction("✅", event.messageID);
+
+      this.context = { botMessageID: sentMessage.messageID, userId };
+    } catch (error) {
+      console.error("Error in command execution:", error.message);
+      message.reaction("❌", event.messageID);
+      return message.reply("❌ An unexpected error occurred. Please try again later.");
+    }
+  },
+
+  onChat: async function ({ message, event, args, api }) {
+    try {
+      if (event.messageReply && event.messageReply.messageID === this.context?.botMessageID) {
+        const prompt = args.join(" ").trim() || "continue";
+
+        const reply = await queryKai(prompt, this.context?.userId);
+        const sentMessage = await message.reply(reply);
+
+        this.context.botMessageID = sentMessage.messageID;
+      }
+    } catch (error) {
+      console.error("Error in onChat:", error.message);
+      return message.reply("❌ Something went wrong while continuing the chat.");
+    }
+  },
 };
