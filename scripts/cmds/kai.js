@@ -1,11 +1,11 @@
-const axios = require("axios");
+ const axios = require("axios");
 
 const messageHistory = new Map();
 const MAX_HISTORY = 10;
 
 async function queryAI(prompt, senderID) {
     try {
-        const response = await axios.get(`https://page-bot-pubh-5a5p-mgo5.onrender.com/api?query=${encodeURIComponent(prompt)}&uid=${senderID}`, {
+        const response = await axios.get(`https://kai-api-2.onrender.com/chat?query=${encodeURIComponent(prompt)}&uid=${senderID}`, {
             timeout: 10000
         });
         
@@ -30,8 +30,8 @@ module.exports = {
         name: "kora",
         aliases: [],
         version: "1.0.0",
-        author: "Suleiman",
-        longDescription: "Interact with AI via the provided API and continue chats based on replies.",
+        author: "Sharma",
+        longDescription: "Interact with Kai Bot via the provided API and continue chats based on replies.",
         category: "AI",
         timestamp: "2025-04-16 00:05:27",
         credit: "Sman12345678"
