@@ -8,9 +8,9 @@ async function queryAI(prompt, senderID) {
         const response = await axios.get(`https://kai-api-2.onrender.com/chat?query=${encodeURIComponent(prompt)}&sessionId=${senderID}`, {
             timeout: 10000
         });
-
-        // Kai API returns { message: "Kai's response" }
-        return response.data.message;
+        
+        // The API returns { response: "message" }
+        return response.data.response;
     } catch (error) {
         if (error.response) {
             console.error("API Error:", error.response.status, error.response.data);
@@ -27,14 +27,14 @@ async function queryAI(prompt, senderID) {
 
 module.exports = {
     config: {
-        name: "kai",
+        name: "kora",
         aliases: [],
         version: "1.0.0",
-        author: "Sharma Zambara",
-        longDescription: "Chat with Kai — your spicy bro trained by Sharma Zambara, Free Fire legend and coder.",
+        author: "Suleiman",
+        longDescription: "Interact with AI via the provided API and continue chats based on replies.",
         category: "AI",
-        timestamp: "2025-05-10 00:00:00",
-        credit: "Sharma Zambara & Frank Kaumba"
+        timestamp: "2025-04-16 00:05:27",
+        credit: "Sman12345678"
     },
 
     onStart: async function({ api, event, args }) {
@@ -50,6 +50,7 @@ module.exports = {
 
     processMessage: async function({ api, event, messageText }) {
         const prompt = messageText.trim();
+
         if (!prompt) return;
 
         try {
@@ -59,7 +60,7 @@ module.exports = {
             if (!messageHistory.has(threadID)) {
                 messageHistory.set(threadID, []);
             }
-
+            
             const history = messageHistory.get(threadID);
             history.push(`user: ${prompt}`);
             
