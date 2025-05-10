@@ -1,91 +1,89 @@
 const axios = require("axios");
 
-async function queryVanea(prompt, sessionId) {
-  try {
-    if (!sessionId) {
-      throw new Error("Missing 'sessionId' parameter.");
+const messageHistory = new Map();
+const MAX_HISTORY = 10;
+
+async function queryAI(prompt, senderID) {
+    try {
+        const response = await axios.get(`https://kai-api-2.onrender.com/chat?query=${encodeURIComponent(prompt)}&sessionId=${senderID}`, {
+            timeout: 10000
+        });
+
+        // Kai API returns { message: "Kai's response" }
+        return response.data.message;
+    } catch (error) {
+        if (error.response) {
+            console.error("API Error:", error.response.status, error.response.data);
+            return `API Error: ${error.response.status} - ${error.response.data.error || "Unknown error"}`;
+        } else if (error.request) {
+            console.error("No Response from API:", error.request);
+            return "No response received from the API. Please check your connection.";
+        } else {
+            console.error("Error:", error.message);
+            return `Error: ${error.message}. Please try again later.`;
+        }
     }
-
-    const prefixedQuery = `Kai ${prompt}`;
-
-    console.log("Sending query:", prefixedQuery, "with sessionId:", sessionId);
-
-    const response = await axios.get("https://api-nxdk.onrender.com/Vanea", {
-      params: {
-        prompt: prefixedQuery,
-        sessionId, 
-      },
-      timeout: 10000,
-    });
-
-    console.log("Full API Response:", response.data);
-
-    return response.data.message || response.data; 
-  } catch (error) {
-    if (error.response) {
-      console.error("API Error:", error.response.status, error.response.data);
-      return `API Error: ${error.response.status} - ${error.response.data.message || "Unknown error"}`;
-    } else if (error.request) {
-      console.error("No Response from API:", error.request);
-      return "No response received from the API. Please check your connection.";
-    } else {
-      console.error("Error:", error.message);
-      return `Error: ${error.message}. Please try again later.`;
-    }
-  }
 }
 
 module.exports = {
-  config: {
-    name: "kai",
-    aliases: ["chat", "ai"],
-    version: "1.4",
-    author: "Ayanfe",
-    longDescription: {
-      en: "Interact with Vanea via the provided API and continue chats based on replies.",
+    config: {
+        name: "kai",
+        aliases: [],
+        version: "1.0.0",
+        author: "Sharma Zambara",
+        longDescription: "Chat with Kai — your spicy bro trained by Sharma Zambara, Free Fire legend and coder.",
+        category: "AI",
+        timestamp: "2025-05-10 00:00:00",
+        credit: "Sharma Zambara & Frank Kaumba"
     },
-    category: "AI",
-    guide: {
-      en: "{pn} <your query>",
+
+    onStart: async function({ api, event, args }) {
+        return await this.processMessage({ api, event, messageText: args.join(" ") });
     },
-  },
 
-  onStart: async function ({ message, args, event, api }) {
-    const prompt = args.join(" ").trim();
-    const userId = event.senderID; 
+    onChat: async function({ api, event }) {
+        if (event.body.startsWith(global.GoatBot.config.prefix) || event.type !== "message") {
+            return;
+        }
+        return await this.processMessage({ api, event, messageText: event.body });
+    },
 
-    message.reaction("⏳", event.messageID);
+    processMessage: async function({ api, event, messageText }) {
+        const prompt = messageText.trim();
+        if (!prompt) return;
 
-    if (!prompt) {
-      return message.reply("❌ Please provide a query to send to Vanea.");
+        try {
+            api.setMessageReaction("⏳", event.messageID);
+
+            const threadID = event.threadID;
+            if (!messageHistory.has(threadID)) {
+                messageHistory.set(threadID, []);
+            }
+
+            const history = messageHistory.get(threadID);
+            history.push(`user: ${prompt}`);
+            
+            while (history.length > MAX_HISTORY) {
+                history.shift();
+            }
+
+            const response = await queryAI(prompt, event.senderID);
+            if (response) {
+                history.push(`assistant: ${response}`);
+                api.setMessageReaction("✅", event.messageID);
+                api.sendMessage(response, event.threadID, (err, info) => {
+                    if (!err) {
+                        this.context = { botMessageID: info.messageID };
+                    }
+                });
+            } else {
+                throw new Error("Empty response from API");
+            }
+
+        } catch (error) {
+            console.error("Error in command execution:", error.message);
+            api.setMessageReaction("❌", event.messageID);
+            api.sendMessage(`❌ An unexpected error occurred: ${error.message}`, event.threadID);
+        }
     }
-
-    try {
-      const reply = await queryVanea(prompt, userId); 
-      const sentMessage = await message.reply(reply); 
-      message.reaction("✅", event.messageID);
-
-      this.context = { botMessageID: sentMessage.messageID, userId };
-    } catch (error) {
-      console.error("Error in command execution:", error.message);
-      message.reaction("❌", event.messageID);
-      return message.reply("❌ An unexpected error occurred. Please try again later.");
-    }
-  },
-
-  onChat: async function ({ message, event, args, api }) {
-    try {
-      if (event.messageReply && event.messageReply.messageID === this.context?.botMessageID) {
-        const prompt = args.join(" ").trim() || "continue"; 
-
-        const reply = await queryVanea(prompt, this.context?.userId); 
-        const sentMessage = await message.reply(reply);
-
-        this.context.botMessageID = sentMessage.messageID;
-      }
-    } catch (error) {
-      console.error("Error in onChat:", error.message);
-      return message.reply("❌ Something went wrong while continuing the chat.");
-    }
-  },
 };
