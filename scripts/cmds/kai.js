@@ -3,18 +3,23 @@ const axios = require("axios");
 const messageHistory = new Map();
 const MAX_HISTORY = 10;
 
-async function queryAI(prompt, senderID) {
+async function queryKai(prompt, senderID) {
     try {
-        const response = await axios.get(`https://kai-api-2.onrender.com/chat?query=${encodeURIComponent(prompt)}&sessionId=${senderID}`, {
-            timeout: 10000
+        if (!senderID) throw new Error("Missing 'senderID' parameter.");
+
+        const response = await axios.get("https://kai-api-2.onrender.com/chat", {
+            params: {
+                query: `Kai ${prompt}`,
+                sessionId: senderID,
+            },
+            timeout: 10000,
         });
-        
-        // The API returns { response: "message" }
-        return response.data.response;
+
+        return response.data.message || response.data;
     } catch (error) {
         if (error.response) {
             console.error("API Error:", error.response.status, error.response.data);
-            return `API Error: ${error.response.status} - ${error.response.data.error || "Unknown error"}`;
+            return `API Error: ${error.response.status} - ${error.response.data.message || "Unknown error"}`;
         } else if (error.request) {
             console.error("No Response from API:", error.request);
             return "No response received from the API. Please check your connection.";
@@ -27,14 +32,14 @@ async function queryAI(prompt, senderID) {
 
 module.exports = {
     config: {
-        name: "kora",
-        aliases: [],
+        name: "kai",
+        aliases: ["chat", "ai"],
         version: "1.0.0",
-        author: "Suleiman",
-        longDescription: "Interact with AI via the provided API and continue chats based on replies.",
+        author: "Sharma Zambara",
+        longDescription: "Chat with Kai using the Kai API. Continue conversations in a WhatsApp-like experience.",
         category: "AI",
-        timestamp: "2025-04-16 00:05:27",
-        credit: "Sman12345678"
+        timestamp: "2025-05-10 00:00:00",
+        credit: "Zambara + Frank Kaumba"
     },
 
     onStart: async function({ api, event, args }) {
@@ -60,15 +65,15 @@ module.exports = {
             if (!messageHistory.has(threadID)) {
                 messageHistory.set(threadID, []);
             }
-            
+
             const history = messageHistory.get(threadID);
             history.push(`user: ${prompt}`);
-            
+
             while (history.length > MAX_HISTORY) {
                 history.shift();
             }
 
-            const response = await queryAI(prompt, event.senderID);
+            const response = await queryKai(prompt, event.senderID);
             if (response) {
                 history.push(`assistant: ${response}`);
                 api.setMessageReaction("✅", event.messageID);
@@ -78,7 +83,7 @@ module.exports = {
                     }
                 });
             } else {
-                throw new Error("Empty response from API");
+                throw new Error("Empty response from Kai API");
             }
 
         } catch (error) {
