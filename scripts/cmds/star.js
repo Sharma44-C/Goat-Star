@@ -3,10 +3,10 @@ const messageHistory = new Map();
 const MAX_HISTORY = 10;
 const activeUsers = new Set();
 
-async function queryKai(prompt, senderID) {
+async function queryStar(prompt, senderID) {
   try {
-    const response = await axios.get("https://kai-api-2.onrender.com/chat", {
-      params: { query: `Kai ${prompt}`, sessionId: senderID },
+    const response = await axios.get("https://star-bot-pwah.onrender.com/chat", {
+      params: { query: `Star ${prompt}`, sessionId: senderID },
       timeout: 10000,
     });
     return response.data.message || response.data;
@@ -36,11 +36,11 @@ async function generateImage(prompt) {
 
 module.exports = {
   config: {
-    name: "kai",
+    name: "star",
     aliases: ["chat", "ai"],
     version: "1.0.0",
     author: "Sharma Zambara",
-    longDescription: "Chat with Kai using the Kai API. Continue conversations in a WhatsApp-like experience.",
+    longDescription: "Chat with Star using the Star API. Continue conversations in a WhatsApp-like experience.",
     category: "AI",
     timestamp: "2025-05-10 00:00:00",
     credit: "Zambara + Frank Kaumba"
@@ -49,17 +49,17 @@ module.exports = {
     const input = args.join(" ").toLowerCase().trim();
     if (input === "on") {
       activeUsers.add(event.senderID);
-      api.sendMessage("Kai is now active for you. Say 'Kai off' to deactivate.", event.threadID);
+      api.sendMessage("Star is now active for you. Say 'Star off' to deactivate.", event.threadID);
       return;
     } else if (input === "off") {
       activeUsers.delete(event.senderID);
-      api.sendMessage("Kai is now deactivated for you. Say 'Kai on' to activate again.", event.threadID);
+      api.sendMessage("Star is now deactivated for you. Say 'Star on' to activate again.", event.threadID);
       return;
     }
     if (activeUsers.has(event.senderID)) {
       return await this.processMessage({ api, event, messageText: args.join(" ") });
     } else {
-      api.sendMessage("Kai is currently deactivated. Say 'Kai on' to start chatting with Kai.", event.threadID);
+      api.sendMessage("Star is currently deactivated. Say 'Star on' to start chatting with Star.", event.threadID);
     }
   },
   onChat: async function({ api, event }) {
@@ -67,16 +67,16 @@ module.exports = {
       return;
     }
     const messageText = event.body.trim().toLowerCase();
-    if (messageText === "kai on") {
+    if (messageText === "star on") {
       activeUsers.add(event.senderID);
-      api.sendMessage("Kai is now active for you. Say 'Kai off' to deactivate.", event.threadID);
+      api.sendMessage("Star is now active for you. Say 'Star off' to deactivate.", event.threadID);
       return;
-    } else if (messageText === "kai off") {
+    } else if (messageText === "star off") {
       activeUsers.delete(event.senderID);
-      api.sendMessage("Kai is now deactivated for you. Say 'Kai on' to activate again.", event.threadID);
+      api.sendMessage("Star is now deactivated for you. Say 'Star on' to activate again.", event.threadID);
       return;
-    } else if (messageText.includes("kai") && !activeUsers.has(event.senderID)) {
-      api.sendMessage("Say 'Kai on' to activate me", event.threadID);
+    } else if (messageText.includes("star") && !activeUsers.has(event.senderID)) {
+      api.sendMessage("Say 'Star on' to activate me", event.threadID);
       return;
     }
     if (activeUsers.has(event.senderID)) {
@@ -100,11 +100,11 @@ module.exports = {
       }
     } else {
       try {
-        const response = await queryKai(prompt, event.senderID);
+        const response = await queryStar(prompt, event.senderID);
         api.sendMessage(response, event.threadID);
       } catch (error) {
         api.sendMessage(`Error: ${error.message}`, event.threadID);
       }
     }
   }
-}                       
+      }
